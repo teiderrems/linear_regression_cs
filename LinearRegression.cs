@@ -30,6 +30,25 @@ namespace Regression
             return X;
         }
 
+        public static List<List<double>> Add_Rows(List<List<double>> X,int n){
+            for (int i = 0; i < n; i++)
+            {
+                X.Add(Generate_array(X[0].Count));
+            }
+            return X;
+        } 
+
+
+        private  static List<List<double>> Extract_Batch(List<List<double>> X,int start, int batch_size){
+            List<List<double>> batch=[];
+            for (int i = start; i < start+batch_size; i++)
+            {
+                batch.Add(X[i]);
+            }
+            return batch;
+        }
+
+
         public void Fit(List<List<double>> X,List<double> Y, double learning_rate, int max_iter=50,int batch_size=1,double precision=0.000001)
         {
             beta= Generate_array(X[0].Count +1);
@@ -37,19 +56,45 @@ namespace Regression
             List<double> grad=[];
             // beta= Update(beta,grad,learning_rate);
             // double norme=Norme(grad);
+            if (X.Count%batch_size!=0)
+            {
+                X=Add_Rows(X,X.Count%batch_size);
+                // System.Console.WriteLine(X.Count);
+            }
             int k=0;
             while (k<max_iter) //norme>precision || 
             {
-                for (int i = 0; i < X.Count; i++)
+                if (batch_size==1)
                 {
-                    grad=Gradient(X[i],Y[i]);
-                    beta= Update(beta,grad,learning_rate);
-                    // norme=Norme(grad);
+                    for (int i = 0; i < X.Count; i++)
+                    {
+                        grad=Gradient(X[i],Y[i]);
+                        beta= Update(beta,grad,learning_rate);
+                        // norme=Norme(grad);
+                    }
+                }
+                else if (batch_size>1)
+                {
+                    for(int i=0;i<X.Count; i+=batch_size){
+                        List<List<double>> batch=Extract_Batch(X,i,batch_size);
+                        List<double> T=Extract_Target(Y,i,batch_size);
+                        grad=Gradient(batch,T);
+                        beta=Update(beta,grad,learning_rate);
+                    }
                 }
                 System.Console.WriteLine($"Lost_iter({k})={Lost(X,Y)}");
                 k++;
             }
 
+        }
+
+        private static List<double> Extract_Target(List<double> Y,int start,int batch_size){
+            List<double> T=[];
+            for (int i = start; i < start+batch_size; i++)
+            {
+                T.Add(Y[i]);
+            }
+            return T;
         }
 
         private static List<double> Update(List<double> beta, List<double> grad, double learning_rate)
@@ -71,6 +116,30 @@ namespace Regression
                 grad.Add(coef * x[i]);
             }
             return grad;
+        }
+
+        public List<double> Gradient(List<List<double>> x,List<double> y)
+        {
+            List<double> grad =Zeros(beta!.Count);
+            for (int i = 0; i < x.Count; i++)
+            {
+                double coef = (-2.0f) * (y[i] - Helper(x[i]));
+                grad[0]+=coef/x.Count;
+                for (int j = 0; j < x[i].Count; j++)
+                {
+                    grad[j + 1] += (coef * x[i][j]) / x.Count;
+                }
+            }
+            return grad;
+        }
+
+        private static List<double> Zeros(int n){
+            List<double> zeros=[];
+            for (int i = 0; i < n; i++)
+            {
+                zeros.Add(0);
+            }
+            return zeros;
         }
 
         private static double Norme(List<double> x)
