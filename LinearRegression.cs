@@ -10,11 +10,12 @@ namespace Regression
 {
     internal class LinearRegression
     {
+        private static readonly Random rd=new(new DateTime().Microsecond);
         public List<double>? beta{get;set;}
 
         public static List<double> Generate_array(int n){
             List<double> array=[];
-            Random rd=new(new DateTime().Microsecond);
+            
             for(int i=0;i<n;i++)
                 array.Add(rd.NextDouble());
             return array;
@@ -30,10 +31,11 @@ namespace Regression
             return X;
         }
 
-        public static List<List<double>> Add_Rows(List<List<double>> X,int n){
-            for (int i = 0; i < n; i++)
+        public static List<List<double>> Add_Rows(List<List<double>> X,List<double> T,int n){
+            while (X.Count%n!=0)
             {
                 X.Add(Generate_array(X[0].Count));
+                T.Add(rd.NextDouble());
             }
             return X;
         } 
@@ -49,17 +51,14 @@ namespace Regression
         }
 
 
-        public void Fit(List<List<double>> X,List<double> Y, double learning_rate, int max_iter=50,int batch_size=1,double precision=0.000001)
+        public void Fit(ref List<List<double>> X,ref List<double> Y, double learning_rate, int max_iter=50,int batch_size=1,double precision=0.000001)
         {
             beta= Generate_array(X[0].Count +1);
             beta.ForEach(t=>System.Console.WriteLine(t));
             List<double> grad=[];
-            // beta= Update(beta,grad,learning_rate);
-            // double norme=Norme(grad);
             if (X.Count%batch_size!=0)
             {
-                X=Add_Rows(X,X.Count%batch_size);
-                // System.Console.WriteLine(X.Count);
+                X=Add_Rows(X,Y,batch_size);
             }
             int k=0;
             while (k<max_iter) //norme>precision || 
@@ -70,7 +69,6 @@ namespace Regression
                     {
                         grad=Gradient(X[i],Y[i]);
                         beta= Update(beta,grad,learning_rate);
-                        // norme=Norme(grad);
                     }
                 }
                 else if (batch_size>1)
