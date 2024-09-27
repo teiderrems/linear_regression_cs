@@ -4,12 +4,13 @@
 // using System.Text;
 // using System.Threading.Tasks;
 
-using System.Data;
+// using System.Data;
 
 namespace Regression
 {
     internal class LinearRegression
     {
+        Mutex mutex=new();
         private static readonly Random rd=new(new DateTime().Microsecond);
         public List<double>? beta{get;set;}
 
@@ -51,7 +52,42 @@ namespace Regression
         }
 
 
+
         public void Fit(ref List<List<double>> X,ref List<double> Y, double learning_rate, int max_iter=50,int batch_size=1,double precision=0.000001)
+        {
+            beta= Generate_array(X[0].Count +1);
+            beta.ForEach(t=>System.Console.WriteLine(t));
+            List<double> grad=[];
+            if (X.Count%batch_size!=0)
+            {
+                X=Add_Rows(X,Y,batch_size);
+            }
+            int k=0;
+            while (k<max_iter) //norme>precision || 
+            {
+                if (batch_size==1)
+                {
+                    for (int i = 0; i < X.Count; i++)
+                    {
+                        grad=Gradient(X[i],Y[i]);
+                        beta= Update(beta,grad,learning_rate);
+                    }
+                }
+                else if (batch_size>1)
+                {
+                    for(int i=0;i<X.Count; i+=batch_size){
+                        List<List<double>> batch=Extract_Batch(X,i,batch_size);
+                        List<double> T=Extract_Target(Y,i,batch_size);
+                        grad=Gradient(batch,T);
+                        beta=Update(beta,grad,learning_rate);
+                    }
+                }
+                System.Console.WriteLine($"Lost_iter({k})={Lost(X,Y)}");
+                k++;
+            }
+
+        }
+        public void Fit_Parallele(ref List<List<double>> X,ref List<double> Y, double learning_rate,int nb_Thread=1, int max_iter=50,int batch_size=1,double precision=0.000001)
         {
             beta= Generate_array(X[0].Count +1);
             beta.ForEach(t=>System.Console.WriteLine(t));
@@ -116,6 +152,34 @@ namespace Regression
             return grad;
         }
 
+        public List<double> Gradient_Parallele(List<double> x,double y,int nb_Thread)
+        {
+            double coef = (-2.0f) * (y - Helper(x));
+            List<double> grad = [coef];
+            var func=(object j)=>{
+                for (int i = (int) j; i < x.Count; i+=nb_Thread)
+                {
+                    mutex.WaitOne();
+                    grad.Add(coef * x[i]);
+                    mutex.Close();
+                }
+            };
+
+            List<Thread> threads=[];
+            for (int i = 0; i < nb_Thread; i++)
+            {
+                Thread t=new(new ParameterizedThreadStart(func));
+                threads.Add(t);
+            }
+
+            for (int i = 0; i < threads.Count; i++)
+            {
+                threads[i].Start(i);
+                threads[i].Join();
+            }
+            return grad;
+        }
+
         public List<double> Gradient(List<List<double>> x,List<double> y)
         {
             List<double> grad =Zeros(beta!.Count);
@@ -136,6 +200,31 @@ namespace Regression
             for (int i = 0; i < n; i++)
             {
                 zeros.Add(0);
+            }
+            return zeros;
+        }
+
+        private List<double> Zeros_Parallele(int n,int nb_Thread){
+            List<double> zeros=[];
+            Action<object> func=(object j)=>{
+                for (int i = (int) j; i < n; i+=nb_Thread)
+                {
+                   mutex.WaitOne();
+                    zeros.Add(0);
+                    mutex.Close();
+                }
+            };
+            List<Thread> threads=[];
+            for (int i = 0; i < nb_Thread; i++)
+            {
+                Thread t=new(new ParameterizedThreadStart(func));
+                threads.Add(t);
+            }
+
+            for (int i = 0; i < threads.Count; i++)
+            {
+                threads[i].Start(i);
+                threads[i].Join();
             }
             return zeros;
         }
@@ -173,6 +262,10 @@ namespace Regression
                 result+= x[i] * beta[i+1];
             }
             return result;
+        }
+
+        ~LinearRegression(){
+            mutex.Dispose();
         }
     }
 }

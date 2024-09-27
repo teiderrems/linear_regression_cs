@@ -1,14 +1,26 @@
-﻿namespace Regression
+﻿using System.Diagnostics;
+
+namespace Regression
 {
     internal class Program
     {
+
+        static Mutex mutex=new();
         static void Main(string[] args)
         {
             int n = 10, m = 1;
 
             List<List<double>> X = Transpose(Linspace(0, 1, n, true));//LinearRegression.Generate_Matrix(n,m);
             ScottPlot.Plot plot = new();
-            List<double> Y = Linspace(0, 1, n, true);//LinearRegression.Generate_array(n);
+            List<double> Y=Linspace(0, 1, n, true);//LinearRegression.Generate_array(n);
+            // if (n>100000000)
+            // {
+            //     Y=Linspace_Parallele(0,1,n,4);
+            // }
+            // else
+            // {
+            //     Linspace(0, 1, n, true);
+            // }
             double[] noise=GenerateGaussianNoise(Y.Count,0,1);
             for (int i = 0; i < Y.Count; i++)
             {
@@ -33,7 +45,24 @@
             X.ForEach(v=>System.Console.WriteLine(v[0]));
             plot.Add.Scatter(ExtractVector(X, 0), predictions);
             plot.SavePng("./predictions.png", 400, 400);
+            // List<double> X=Linspace_Parallele(0,1,100000000,2);
+            // List<double> x=Linspace(0,1,100000000);
+            // X.ForEach(v=>System.Console.WriteLine(v));
+
+            // new DateTime()-new DateTime();
         }
+
+
+        private static List<List<double>> Generate_Matrix(int n,int m,int start,int end){
+          List<List<double>> X=[];
+          for (int i = 0; i < n; i++)
+          {
+            X[i]=Linspace(start,end,m);
+          }
+          return X;
+        }
+
+
 
         private static List<double> ExtractVector(List<List<double>> X, int j)
         {
@@ -47,6 +76,8 @@
 
         private static List<double> Linspace(double start, double end, int num, bool endpoint = false)
         {
+            Stopwatch stopwatch = new();
+            stopwatch.Start();
             List<double> array = [];
             double step;
             if (endpoint)
@@ -61,6 +92,48 @@
             {
                 array.Add(start + step * i);
             }
+            stopwatch.Stop();
+            System.Console.WriteLine($"Sequentiel_time={stopwatch.ElapsedMilliseconds} ms");
+            return array;
+        }
+
+        private static List<double> Linspace_Parallele(double start, double end, int num,int nb_Thread=1, bool endpoint = false)
+        {
+            Stopwatch stopwatch = new();
+            stopwatch.Start();
+            List<double> array = [];
+            double step;
+            if (endpoint)
+            {
+                step = (end - start) / (num - 1);
+            }
+            else
+            {
+                step = (end - start) / num;
+            }
+            Action<object> func=(object j)=>{
+                for (int i = (int) j; i < num; i+=nb_Thread)
+                {
+                    // mutex.WaitOne();
+                    array.Add(start + step * i);
+
+                }
+            };
+
+            List<Thread> threads=[];
+            for (int i = 0; i < nb_Thread; i++)
+            {
+                Thread t=new(new ParameterizedThreadStart(func));
+                threads.Add(t);
+            }
+
+            for (int i = 0; i < nb_Thread; i++)
+            {
+               threads[i].Start(i);
+               threads[i].Join();
+            }
+            stopwatch.Stop();
+            System.Console.WriteLine($"Parallele_time={stopwatch.ElapsedMilliseconds} ms");
             return array;
         }
 
