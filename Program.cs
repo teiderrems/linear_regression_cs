@@ -13,14 +13,7 @@ namespace Regression
             List<List<double>> X = Transpose(Linspace(0, 1, n, true));//LinearRegression.Generate_Matrix(n,m);
             ScottPlot.Plot plot = new();
             List<double> Y=Linspace(0, 1, n, true);//LinearRegression.Generate_array(n);
-            // if (n>100000000)
-            // {
-            //     Y=Linspace_Parallele(0,1,n,4);
-            // }
-            // else
-            // {
-            //     Linspace(0, 1, n, true);
-            // }
+            
             double[] noise=GenerateGaussianNoise(Y.Count,0,1);
             for (int i = 0; i < Y.Count; i++)
             {
@@ -45,11 +38,7 @@ namespace Regression
             X.ForEach(v=>System.Console.WriteLine(v[0]));
             plot.Add.Scatter(ExtractVector(X, 0), predictions);
             plot.SavePng("./predictions.png", 400, 400);
-            // List<double> X=Linspace_Parallele(0,1,100000000,2);
-            // List<double> x=Linspace(0,1,100000000);
-            // X.ForEach(v=>System.Console.WriteLine(v));
-
-            // new DateTime()-new DateTime();
+            
         }
 
 
